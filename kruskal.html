@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kruskal paso a paso</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: herramienta de estudio en dos columnas (grafo + controles | pseudocódigo + estado), una columna en móvil */
+:root {
+  --bg: #f4f6f9;
+  --surface: #ffffff;
+  --fg: #1a2230;
+  --muted: #5a6475;
+  --line: #c3cad6;
+  --faint: #e3e7ee;
+  --accent: #2856c9;
+  --accent-soft: #e4ebfb;
+  --current: #b86e00;
+  --current-soft: #fbefd9;
+  --ok: #1d7f47;
+  --no: #bf3434;
+  --c1: #dbe7ff; --c2: #ffe1d6; --c3: #d9f3e3; --c4: #f3e0ff; --c5: #fff1c4; --c6: #d6f3f6; --c7: #f6dbe6;
+  --font-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11151c; --surface: #19202a; --fg: #e5e9ef; --muted: #98a1b0; --line: #3b4553; --faint: #262e3a;
+    --accent: #7ea3ff; --accent-soft: #23314f; --current: #f0a640; --current-soft: #3d2f17;
+    --ok: #52c78a; --no: #f27474;
+    --c1: #24345a; --c2: #4a2a20; --c3: #1f3d2c; --c4: #3b2550; --c5: #463a12; --c6: #183f44; --c7: #4a2234;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11151c; --surface: #19202a; --fg: #e5e9ef; --muted: #98a1b0; --line: #3b4553; --faint: #262e3a;
+  --accent: #7ea3ff; --accent-soft: #23314f; --current: #f0a640; --current-soft: #3d2f17;
+  --ok: #52c78a; --no: #f27474;
+  --c1: #24345a; --c2: #4a2a20; --c3: #1f3d2c; --c4: #3b2550; --c5: #463a12; --c6: #183f44; --c7: #4a2234;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; }
+body {
+  color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 4px;
+}
+.wrap { max-width: 1180px; margin: 0 auto; }
+.grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 880px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.label { font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin: 0; }
+.title { font-weight: 700; font-size: 1.05rem; margin: 0; }
+svg { width: 100%; height: auto; display: block; }
+button { font: inherit; color: var(--fg); }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.btn { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); font-weight: 700; }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.counter { color: var(--muted); font-variant-numeric: tabular-nums; margin-left: auto; }
+.speed { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+.explain { background: var(--accent-soft); border-radius: 8px; padding: 10px 12px; min-height: 4.5em; }
+.mono { font-family: var(--font-mono); font-size: 0.9em; }
+pre.code { margin: 0; font-family: var(--font-mono); font-size: 0.84rem; line-height: 1.7; overflow-x: auto; }
+pre.code span { display: block; padding: 0 8px; border-radius: 4px; white-space: pre; }
+pre.code span.on { background: var(--current-soft); box-shadow: inset 3px 0 0 var(--current); }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; font-family: var(--font-mono); font-size: 0.86rem; }
+th, td { border: 1px solid var(--line); padding: 5px 6px; text-align: center; }
+th { color: var(--muted); font-weight: 600; }
+td.k { background: var(--current-soft); }
+td.j { box-shadow: inset 0 0 0 2px var(--ok); }
+td.jno { box-shadow: inset 0 0 0 2px var(--no); }
+td.fixed { color: var(--accent); font-weight: 600; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--muted); font-size: 0.85rem; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--line); display: inline-block; }
+.dot.fixed { background: var(--accent); border-color: var(--accent); }
+.dot.cur { background: var(--current-soft); border-color: var(--current); }
+.bar { width: 18px; height: 3px; display: inline-block; border-radius: 2px; }
+.bar.dash { background: repeating-linear-gradient(90deg, var(--accent) 0 5px, transparent 5px 8px) !important; }
+.bar.dashno { background: repeating-linear-gradient(90deg, var(--no) 0 5px, transparent 5px 8px) !important; }
+.statline { font-family: var(--font-mono); font-size: 0.9rem; overflow-wrap: anywhere; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-family: var(--font-mono); font-size: 0.82rem; border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px; color: var(--fg); background: var(--surface); }
+.chip.cur { border-color: var(--current); background: var(--current-soft); font-weight: 600; }
+.chip.acc { border-color: var(--accent); color: var(--accent); }
+.chip.rej { border-color: var(--no); color: var(--no); text-decoration: line-through; }
+.chip.unseen { opacity: 0.5; border-style: dashed; }
+.cls { display: inline-flex; gap: 4px; align-items: center; font-family: var(--font-mono); font-size: 0.86rem; border-radius: 6px; padding: 2px 8px; border: 1px solid var(--line); }
+/* SVG */
+.edge { stroke: var(--line); stroke-width: 2; fill: none; }
+.edge.cur { stroke: var(--current); stroke-width: 5; }
+.edge.acc, .edge.tree { stroke: var(--accent); stroke-width: 5; }
+.edge.rej { stroke: var(--no); stroke-width: 2.5; stroke-dasharray: 7 5; }
+.edge.unseen { stroke: var(--faint); }
+.edge.prov { stroke: var(--accent); stroke-width: 2.5; stroke-dasharray: 6 5; }
+.edge.ok { stroke: var(--ok); stroke-width: 4; }
+.edge.no { stroke: var(--no); stroke-width: 4; stroke-dasharray: 7 5; }
+.w { font-family: var(--font-mono); font-size: 13px; fill: var(--muted); paint-order: stroke; stroke: var(--surface); stroke-width: 5px; stroke-linejoin: round; text-anchor: middle; dominant-baseline: middle; }
+.w.hl { fill: var(--fg); font-weight: 600; }
+.node circle { fill: var(--surface); stroke: var(--line); stroke-width: 2.5; }
+.node text.id { font-family: var(--font-body); font-weight: 700; font-size: 15px; fill: var(--fg); text-anchor: middle; dominant-baseline: central; }
+.node.fixed circle { fill: var(--accent); stroke: var(--accent); }
+.node.fixed text.id { fill: var(--surface); }
+.node.cur circle { fill: var(--current-soft); stroke: var(--current); stroke-width: 4; }
+.node.cur text.id { fill: var(--fg); }
+.node.tgt circle { stroke: var(--ok); stroke-width: 4; }
+.node.tgtno circle { stroke: var(--no); stroke-width: 4; }
+.node.end circle { stroke: var(--current); stroke-width: 4; }
+.dlab { font-family: var(--font-mono); font-size: 13px; text-anchor: middle; fill: var(--fg); paint-order: stroke; stroke: var(--surface); stroke-width: 5px; stroke-linejoin: round; }
+.dlab.inf { fill: var(--muted); }
+@media (prefers-reduced-motion: no-preference) {
+  .edge, .node circle { transition: stroke 0.2s, fill 0.2s, stroke-width 0.2s; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="grid">
+    <section class="panel" aria-label="Grafo y controles">
+      <p class="title">Kruskal paso a paso</p>
+      <svg id="graph" viewBox="0 0 620 380" role="img" aria-label="Grafo con 7 vértices">
+        <g id="edges"></g>
+        <g id="nodes"></g>
+      </svg>
+
+      <div class="legend" aria-label="Leyenda">
+        <span><i class="dot" style="background:var(--c1)"></i>El color indica la clase de la partición</span>
+        <span><i class="bar" style="background:var(--current)"></i>Arista extraída</span>
+        <span><i class="bar" style="background:var(--accent)"></i>En S</span>
+        <span><i class="bar dashno"></i>Descartada (ciclo)</span>
+      </div>
+
+      <div class="controls">
+        <button class="btn" id="reset" type="button">Reiniciar</button>
+        <button class="btn" id="prev" type="button">◀ Anterior</button>
+        <button class="btn primary" id="next" type="button">Siguiente ▶</button>
+        <button class="btn" id="play" type="button">Reproducir</button>
+        <label class="speed" for="speed">Velocidad <input type="range" id="speed" min="300" max="2500" step="100" value="1300"></label>
+        <span class="counter" id="counter"></span>
+      </div>
+
+      <div class="explain" id="explain" aria-live="polite"></div>
+    </section>
+
+    <section class="panel" aria-label="Pseudocódigo y estado">
+      <p class="label">Pseudocódigo (diapositivas)</p>
+      <pre class="code" id="code"></pre>
+      <p class="label">Candidatos C (ordenados por peso)</p>
+      <div class="chips" id="cands"></div>
+      <p class="label">Partición p</p>
+      <div class="chips" id="part"></div>
+      <p class="label">Solución</p>
+      <div class="statline" id="sol"></div>
+    </section>
+  </div>
+</div>
+
+<script>
+(function () {
+  const N = 7;
+  // vértices 1..7; posiciones como en el ejercicio 6 de la relación
+  const POS = [null,[70,190],[190,70],[190,310],[310,190],[430,70],[430,310],[550,190]];
+  const EDGES = [[1,2,1],[2,3,8],[2,4,8],[2,5,8],[3,4,7],[4,5,6],[4,6,9],[5,6,9],[6,7,4]];
+  const R = 20;
+  const CODE = [
+    "Kruskal(V, A) → S",
+    "C ← A",
+    "S ← ∅",
+    "n ← |V|",
+    "p ← partición-inicial(n)",
+    "ordena(C)",
+    "mientras |S| ≠ n − 1",
+    "    {i, j} ← extrae-primero(C)",
+    "    (e₁, e₂) ← (búsqueda(p, n, i), búsqueda(p, n, j))",
+    "    si e₁ ≠ e₂",
+    "        unión(p, n, e₁, e₂)",
+    "        S ← S ∪ {{i, j}}"
+  ];
+  const $ = id => document.getElementById(id);
+  const ek = e => "{" + e[0] + ", " + e[1] + "}";
+
+  let steps = [], cur = 0, timer = null;
+
+  function simulate() {
+    // orden estable por peso: los empates quedan en el orden de la lista
+    const sorted = EDGES.map((e, idx) => ({ e, idx })).sort((a, b) => a.e[2] - b.e[2] || a.idx - b.idx).map(o => o.e);
+    const par = Array(N + 1).fill(0).map((_, i) => i);
+    const h = Array(N + 1).fill(0);
+    const find = x => { while (par[x] !== x) x = par[x]; return x; };
+    const status = sorted.map(() => "pend");
+    const S = [];
+    const out = [];
+    const classes = () => {
+      const m = {};
+      for (let v = 1; v <= N; v++) { const r = find(v); (m[r] = m[r] || []).push(v); }
+      return Object.keys(m).map(r => ({ rep: +r, vs: m[r] })).sort((a, b) => a.vs[0] - b.vs[0]);
+    };
+    const snap = (o) => Object.assign({ status: status.slice(), S: S.slice(), classes: classes(), sorted }, o);
+
+    out.push(snap({ type: "init", cur: -1, lines: [1, 2, 3, 4, 5],
+      text: `<b>Inicialización.</b> Se ordenan las aristas por peso creciente (las de igual peso quedan en el orden de la lista). Cada vértice empieza en su propia clase de la partición y S = ∅. El bucle se repite hasta que S tenga n − 1 = ${N - 1} aristas.` }));
+
+    let t = 0;
+    while (S.length !== N - 1 && t < sorted.length) {
+      const [i, j, w] = sorted[t];
+      status[t] = "cur";
+      const e1 = find(i), e2 = find(j);
+      out.push(snap({ type: "extract", cur: t, e1, e2, lines: [7, 8],
+        text: `<b>Se extrae la primera arista de C:</b> {${i}, ${j}} con peso ${w}. Se busca la clase de cada extremo: búsqueda(${i}) = <b>${e1}</b> y búsqueda(${j}) = <b>${e2}</b> (el representante de su clase).` }));
+      if (e1 !== e2) {
+        if (h[e1] < h[e2]) par[e1] = e2; else { par[e2] = e1; if (h[e1] === h[e2]) h[e1]++; }
+        S.push(sorted[t]); status[t] = "acc";
+        out.push(snap({ type: "acc", cur: t, lines: [9, 10, 11],
+          text: `<b>e₁ ≠ e₂:</b> ${i} y ${j} están en clases distintas, así que la arista no forma ciclo. Se unen las dos clases y {${i}, ${j}} entra en S. Ya hay ${S.length} de ${N - 1} aristas.` }));
+      } else {
+        status[t] = "rej";
+        out.push(snap({ type: "rej", cur: t, lines: [9],
+          text: `<b>e₁ = e₂:</b> ${i} y ${j} ya están en la misma clase, es decir, ya hay un camino entre ellos con aristas de S. Añadir {${i}, ${j}} formaría un ciclo, así que se descarta.` }));
+      }
+      t++;
+    }
+    for (let r = t; r < sorted.length; r++) status[r] = "unseen";
+    const total = S.reduce((a, e) => a + e[2], 0);
+    const rest = sorted.slice(t).map(ek).join(", ");
+    out.push(snap({ type: "end", cur: -1, lines: [6],
+      text: `<b>Fin.</b> |S| = n − 1 = ${N - 1}: S es un árbol de expansión mínimo, con peso total <b>${total}</b>. ` +
+        (rest ? `Las aristas que quedaban en C (${rest}) ni siquiera se miran.` : "") }));
+    return out;
+  }
+
+  const svgNS = "http://www.w3.org/2000/svg";
+  function el(tag, attrs, parent) {
+    const e = document.createElementNS(svgNS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+
+  function render() {
+    const s = steps[cur];
+    const st = new Map();
+    s.sorted.forEach((e, k) => st.set(e, s.status[k]));
+    const curEdge = s.cur >= 0 ? s.sorted[s.cur] : null;
+
+    const ge = $("edges"); ge.innerHTML = "";
+    for (const e of EDGES) {
+      const [u, v, w] = e;
+      const status = st.get(e);
+      const cls = { pend: "default", cur: "cur", acc: "acc", rej: "rej", unseen: "unseen" }[status];
+      const [x1, y1] = POS[u], [x2, y2] = POS[v];
+      const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy), ux = dx / L, uy = dy / L;
+      el("line", { class: "edge " + cls, x1: x1 + ux * R, y1: y1 + uy * R, x2: x2 - ux * R, y2: y2 - uy * R }, ge);
+      const t = el("text", { class: "w" + (cls === "cur" || cls === "acc" ? " hl" : ""), x: (x1 + x2) / 2 - uy * 13, y: (y1 + y2) / 2 + ux * 13 }, ge);
+      t.textContent = w;
+    }
+
+    const colorOf = {};
+    s.classes.forEach(c => c.vs.forEach(v => colorOf[v] = "var(--c" + c.vs[0] + ")"));
+    const gn = $("nodes"); gn.innerHTML = "";
+    for (let i = 1; i <= N; i++) {
+      let cls = "node";
+      if (curEdge && (curEdge[0] === i || curEdge[1] === i)) cls += " end";
+      const g = el("g", { class: cls }, gn);
+      const [x, y] = POS[i];
+      const c = el("circle", { cx: x, cy: y, r: R }, g);
+      c.style.fill = colorOf[i];
+      const t = el("text", { class: "id", x, y }, g); t.textContent = i;
+    }
+
+    $("code").innerHTML = CODE.map((l, i) => `<span class="${s.lines.includes(i) ? "on" : ""}">${l.replace(/</g, "&lt;")}</span>`).join("");
+    $("cands").innerHTML = s.sorted.map((e, k) => {
+      const c = { pend: "", cur: "cur", acc: "acc", rej: "rej", unseen: "unseen" }[s.status[k]];
+      return `<span class="chip ${c}">${ek(e)}: ${e[2]}</span>`;
+    }).join("");
+    $("part").innerHTML = s.classes.map(c =>
+      `<span class="cls" style="background:var(--c${c.vs[0]})">{${c.vs.join(", ")}}${s.type === "extract" && (c.rep === s.e1 || c.rep === s.e2) ? " ← rep. " + c.rep : ""}</span>`).join("");
+    const total = s.S.reduce((a, e) => a + e[2], 0);
+    $("sol").textContent = `S = {${s.S.map(ek).join(", ")}}   |S| = ${s.S.length} de ${N - 1}   ·   peso = ${total}`;
+
+    $("explain").innerHTML = s.text;
+    $("counter").textContent = `Paso ${cur + 1} de ${steps.length}`;
+    $("prev").disabled = cur === 0;
+    $("next").disabled = cur === steps.length - 1;
+  }
+
+  function go(n) { cur = Math.max(0, Math.min(steps.length - 1, n)); render(); }
+  function stop() { if (timer) { clearInterval(timer); timer = null; } $("play").textContent = "Reproducir"; }
+  function play() {
+    if (timer) { stop(); return; }
+    if (cur === steps.length - 1) go(0);
+    $("play").textContent = "Pausa";
+    timer = setInterval(() => { if (cur >= steps.length - 1) { stop(); return; } go(cur + 1); }, 2800 - +$("speed").value);
+  }
+  $("reset").addEventListener("click", () => { stop(); go(0); });
+  $("prev").addEventListener("click", () => { stop(); go(cur - 1); });
+  $("next").addEventListener("click", () => { stop(); go(cur + 1); });
+  $("play").addEventListener("click", play);
+  $("speed").addEventListener("input", () => { if (timer) { stop(); play(); } });
+  document.addEventListener("keydown", e => {
+    if (e.target.tagName === "INPUT") return;
+    if (e.key === "ArrowRight") { stop(); go(cur + 1); }
+    if (e.key === "ArrowLeft") { stop(); go(cur - 1); }
+  });
+
+  steps = simulate();
+  render();
+})();
+</script>
+</body>
+</html>
