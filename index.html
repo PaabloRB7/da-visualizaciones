@@ -38,12 +38,12 @@
   --ok: #52c78a; --no: #f27474; --path: #c19bff; color-scheme: dark;
 }
 * { box-sizing: border-box; }
-body { margin: 0; }
+html, body { margin: 0; background: transparent; }
 body {
-  background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+  background: transparent; color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.5;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
-  padding-block: 20px 32px;
+  padding-block: 4px;
 }
 .wrap { max-width: 1180px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
 header h1 { font-size: 1.6rem; margin: 0; text-wrap: balance; }
@@ -116,10 +116,6 @@ td.fixed { color: var(--accent); font-weight: 600; }
 <body>
 
 <div class="wrap">
-  <header>
-    <h1>Dijkstra paso a paso</h1>
-    <p>Grafo de <span class="mono">grafo.dat</span> de la práctica 1. El pseudocódigo es el de las diapositivas, con recuperación de caminos. Avanza paso a paso o pulsa Reproducir.</p>
-  </header>
 
   <div class="grid">
     <section class="panel" aria-label="Grafo y controles">
